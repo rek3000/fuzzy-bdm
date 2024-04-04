@@ -30,12 +30,12 @@ class Naive_Bayes():
         """
         
         """
-            TODO: 1. Modify and add some codes to the following for-loop
+            FINISHED_TODO: 1. Modify and add some codes to the following for-loop
                      to compute the correct prior distribution of all y labels.
                   2. Make sure they are normalized to a distribution.
         """
         """
-            TODO: 3. Modify and add some codes to the following for-loops
+            FINISHED_TODO: 3. Modify and add some codes to the following for-loops
                      to compute the correct likelihood P(X_j | Y).
                   4. Make sure they are normalized to distributions.
         """
@@ -45,7 +45,7 @@ class Naive_Bayes():
         self.compute_likelihood(X_train, y_train.astype(str))  # Convert y_train to strings
 
         """
-            TODO: 5. Think about whether we really need P(X_1 = x_1, X_2 = x_2, ..., X_d = x_d)
+            FINISHED_TODO: 5. Think about whether we really need P(X_1 = x_1, X_2 = x_2, ..., X_d = x_d)
                      in practice?
                   6. Does this really matter for the final classification results?
         """
@@ -104,7 +104,7 @@ class Naive_Bayes():
         """
         
         """
-            TODO: 7. Enumerate all possible class labels and compute the likelihood 
+            FINISHED_TODO: 7. Enumerate all possible class labels and compute the likelihood 
                      based on the given feature vector x. Don't forget to incorporate 
                      both the prior and likelihood.
                   8. Pick the label with the higest probability. 
@@ -155,7 +155,7 @@ class Naive_Bayes():
         """
         
         """
-            TODO: 11. Revise the following for-loop to call ind_predict to get predictions.
+            FINISHED_TODO: 11. Revise the following for-loop to call ind_predict to get predictions.
         """
         
         X = np.array(X)  # Convert X to numpy array
