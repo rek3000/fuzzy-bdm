@@ -24,7 +24,7 @@ class DecisionTree():
             DONE TODO: 1. Modify the initialization of the attributes of the Decision Tree classifier
         """
 
-        self.root = 1
+        self.root = None
         self.max_depth = max_depth
         self.size_allowed = size_allowed
         self.n_features = n_features
@@ -44,7 +44,7 @@ class DecisionTree():
 
         """
 
-        def __init__(self, threshold=None, feature=None):
+        def __init__(self, threshold=None, feature=None, depth=0):
             """
 
                 Initializations for class attributes.
@@ -58,6 +58,7 @@ class DecisionTree():
             self.right = None
             self.pure = False
             self.predict = None
+            self.depth = depth
 
     def entropy(self, lst):
         """
@@ -78,22 +79,15 @@ class DecisionTree():
                      to compute the correct entropy.
                      (make sure count of corresponding label is not 0, think about why we need to do that.)
         """
-
         entro = 0
-        classes = []
-        counts = []
+        classes, counts = np.unique(lst, return_counts=True)
         total_counts = len(lst)
 
-        for i in lst:
-            if i not in classes:
-                classes.append(i)
-                counts.append(0)
-            counts[classes.index(i)] += 1
-
+        # Avoid division by zero for empty classes
         for count in counts:
             if count > 0:
                 p = count / total_counts
-                entro -= p * math.log(p, 2)
+                entro -= p * np.log2(p)
 
         return entro
 
@@ -114,29 +108,17 @@ class DecisionTree():
 
 
         """
+        left_index = values <= threshold
+        right_index = values > threshold
 
-        left_lst = []
-        right_lst = []
-        left_prop = 0
-        right_prop = 0
-        left_entropy = 0
-        right_entropy = 0
+        left_entropy = self.entropy(lst[left_index])
+        right_entropy = self.entropy(lst[right_index])
 
-        for i in range(len(lst)):
-            if (values[i] <= threshold).any():
-                left_lst.append(lst[i])
-            else:
-                right_lst.append(lst[i])
+        p_left = len(lst[left_index]) / len(lst)
+        p_right = len(lst[right_index]) / len(lst)
 
-        left_prop = len(left_lst) / (len(lst) + 1e-10)
-        right_prop = 1 - left_prop
-
-        if len(left_lst) > 0:
-            left_entropy = self.entropy(left_lst)
-        if len(right_lst) > 0:
-            right_entropy = self.entropy(right_lst)
-
-        information_gain = left_prop * left_entropy + right_prop * right_entropy
+        information_gain = self.entropy(
+            lst) - p_left * left_entropy - p_right * right_entropy
         return information_gain
 
     def find_rules(self, data):
@@ -155,20 +137,12 @@ class DecisionTree():
         n, m = data.shape
         rules = []
 
-        for i in range(m):
-            # Extract the current feature's values from the dataset
-            feature_values = data[:, i]
+        for col in range(m):
+            unique_values = np.unique(data[:, col])
+            diff = np.diff(unique_values)
 
-            unique_values = np.unique(feature_values)
-
-            # Initialize an empty list to store the midpoints for the current feature
-            feature_rules = []
-
-            # Iterate through the sorted unique values to find midpoints
-            midpoint = np.mean([unique_values[:-1], unique_values[1:]], axis=0)
-            feature_rules.append(midpoint)
-
-            rules.append(feature_rules)
+            potential_thresholds = unique_values[:-1] + diff / 2
+            rules.append(potential_thresholds.tolist())
 
         return rules
 
@@ -184,15 +158,8 @@ class DecisionTree():
             TODO: 9. Use find_rules to initialize rules variable
                   10. Initialize max_info to some negative number.
         """
-
-        # rules = []
-        # max_info = 1
-        # num_col = 1
-        # threshold = 1
-        # entropy_y = 1
-
         rules = self.find_rules(data)
-        max_info = float('-inf')
+        max_info = -float('inf')
         num_col = None
         threshold = None
 
@@ -203,16 +170,15 @@ class DecisionTree():
 
 
         """
-        total_features = data.shape[1]
         if self.n_features is None:
-            considered_features = np.arange(total_features)
+            index_col = range(len(rules))
+        elif isinstance(self.n_features, int):
+            index_col = np.random.choice(
+                len(rules), self.n_features, replace=False)
         else:
-            if self.n_features == 'sqrt':
-                considered_features = np.random.choice(
-                    total_features, int(np.sqrt(total_features)), replace=False)
-            else:
-                considered_features = np.random.choice(
-                    total_features, n_features, replace=False)
+            num_features = int(np.sqrt(len(rules)))
+            index_col = np.random.choice(
+                len(rules), num_features, replace=False)
 
         """
 
@@ -220,24 +186,14 @@ class DecisionTree():
                   13. For all selected feature and corresponding rules, we check it's information gain.
 
         """
-        for i in considered_features:
-            feature_rules = len(rules[i])
-
-            if self.n_split is None:
-                considered_splits = np.arange(feature_rules)
-            elif self.n_split == 'sqrt':
-                considered_splits = np.random.choice(feature_rules, int(
-                    np.sqrt(feature_rules)), replace=False)
-            else:
-                considered_splits = np.random.choice(
-                    feature_rules, self.n_split, replace=False)
-
-            for thresh in considered_splits:
-                info_gain = self.information_gain(label, data[:, i], thresh)
-                if info_gain > max_info:
-                    max_info = info_gain
-                    num_col = i
-                    threshold = thresh
+        for col in index_col:
+            for potential_threshold in rules[col]:
+                info = self.information_gain(
+                    label, data[:, col], potential_threshold)
+                if info > max_info:
+                    max_info = info
+                    num_col = col
+                    threshold = potential_threshold
 
         return threshold, num_col
 
@@ -248,7 +204,6 @@ class DecisionTree():
                 TODO: 14. First build the root node.
             """
 
-        # first_threshold, first_feature = 1, 1
         first_threshold, first_feature = self.next_split(X, y)
         current = self.Node(first_threshold, first_feature)
 
@@ -263,10 +218,11 @@ class DecisionTree():
 
               """
 
-        if (depth >= self.max_depth or
-                len(X) < self.size_allowed):
-            current.pure = True
+        if depth >= self.max_depth or \
+                first_feature is None or len(X) <= self.size_allowed:
+
             current.predict = np.argmax(np.bincount(y.astype(int)))
+            current.pure = True
             return current
 
             """
@@ -282,23 +238,21 @@ class DecisionTree():
                 TODO: 16. Find the left node index with feature i <= threshold  Right with feature i > threshold.
             """
 
-            # left_index = [0]
-            # right_index = [1]
-        left_index = X.T[first_feature] <= first_threshold
-        right_index = X.T[first_feature] > first_threshold
+        left_index = X[:, first_feature] <= first_threshold
+        right_index = X[:, first_feature] > first_threshold
 
         """
                 TODO: 17. Base Case 3: If we either side is empty, change current to pure, and set predict to the label
             """
-        if sum(left_index) == 0 or sum(right_index) == 0:
+        if not np.any(left_index) or not np.any(right_index):
             current.predict = np.argmax(np.bincount(y.astype(int)))
             current.pure = True
             return current
 
-        left_X, left_y = X[left_index, :], y[left_index]
+        left_X, left_y = X[left_index], y[left_index]
         current.left = self.build_tree(left_X, left_y, depth + 1)
 
-        right_X, right_y = X[right_index, :], y[right_index]
+        right_X, right_y = X[right_index], y[right_index]
         current.right = self.build_tree(right_X, right_y, depth + 1)
 
         return current
@@ -328,10 +282,6 @@ class DecisionTree():
         """
         cur = self.root
         while not cur.pure:
-
-            # feature = 0
-            # threshold = 0
-
             if inp[cur.feature] <= cur.threshold:
                 cur = cur.left
             else:
@@ -349,7 +299,6 @@ class DecisionTree():
         """
 
         result = []
-        inp = np.asarray(inp)
         for i in range(inp.shape[0]):
             result.append(self.ind_predict(inp[i]))
         return result
