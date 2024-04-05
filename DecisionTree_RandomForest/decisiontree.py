@@ -266,7 +266,7 @@ class DecisionTree():
         if (depth >= self.max_depth or
                 len(X) < self.size_allowed):
             current.pure = True
-            current.predict = np.argmax(np.bincount(y))
+            current.predict = np.argmax(np.bincount(y.astype(int)))
             return current
 
             """
@@ -349,6 +349,7 @@ class DecisionTree():
         """
 
         result = []
+        inp = np.asarray(inp)
         for i in range(inp.shape[0]):
             result.append(self.ind_predict(inp[i]))
         return result
