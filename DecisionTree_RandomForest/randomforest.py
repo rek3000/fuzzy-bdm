@@ -1,6 +1,5 @@
 import numpy as np
-# import pandas as pd
-from decisiontree import DecisionTree as DecisionTree
+#from decisiontree import DecisionTree as DecisionTree
 
 
 class RandomForest():
@@ -19,7 +18,7 @@ class RandomForest():
 
     """
 
-    def __init__(self, n_trees=10, n_features='sqrt', n_split='sqrt', max_depth=0, size_allowed=1):
+    def __init__(self, n_trees=25, n_features='sqrt', n_split=None, max_depth=1000, size_allowed=1):
         """
             Initilize all Attributes.
 
@@ -46,21 +45,13 @@ class RandomForest():
                      Pass in all the attributes.
         """
         for _ in range(self.n_trees):
-            clf = DecisionTree(n_features=self.n_features,
-                               n_split=self.n_split,
-                               max_depth=self.max_depth,
-                               size_allowed=self.size_allowed)
-            if isinstance(self.n_features, str) and self.n_features == 'sqrt':
-                n_features_to_consider = int(np.sqrt(X.shape[1]))
-            else:
-                n_features_to_consider = self.n_features
-
-            X_subset = X[:, np.random.choice(
-                X.shape[1], n_features_to_consider, replace=False)]
-
-            clf.fit(X_subset, y)
-
-            self.trees.append(clf)
+            np.random.seed()  # Seed for randomness in each tree
+            temp_clf = DecisionTree(n_features=self.n_features,
+                                    n_split=self.n_split,
+                                    max_depth=self.max_depth,
+                                    size_allowed=self.size_allowed)
+            temp_clf.fit(X, y)
+            self.trees.append(temp_clf)
 
         return self
 
@@ -70,21 +61,15 @@ class RandomForest():
 
             TODO: 4. Modify the following code to predict using each Decision Tree.
         """
-        result = []
-        for tree in self.trees:
-            result.append(tree.predict([inp])[0])
+        results = np.array([tree.ind_predict(inp) for tree in self.trees])
 
         """
             TODO: 5. Modify the following code to find the correct prediction use majority rule.
                      If there is a tie, use random choice to select one of them.
         """
-        vote_counts = {}
-        for prediction in result:
-            vote_counts[prediction] = vote_counts.get(prediction, 0) + 1
+        labels, counts = np.unique(results, return_counts=True)
 
-        labels = max(vote_counts, key=vote_counts.get)
-
-        return labels
+        return labels[np.argmax(counts)]
 
     def predict_all(self, inp):
         """
@@ -95,8 +80,4 @@ class RandomForest():
 
             TODO: 6. Revise the following for-loop to call ind_predict to get predictions
         """
-        result = []
-        # inp = np.array(inp)
-        for i in range(len(inp)):
-            result.append(self.ind_predict(inp[i]))
-        return result
+        return np.array([self.ind_predict(vect) for vect in inp])
